@@ -150,6 +150,25 @@ export function constructTable<
     )
   }
 
+  // Data identity routed through the reactivity layer: row models depend on
+  // this atom rather than raw `options.data` identity, so an external data
+  // atom (with e.g. a content-aware `compare`) can absorb redundant array
+  // replacements. Without an external atom this resolves to `options.data`.
+  ;(table.atoms as any).data = _reactivity.createReadonlyAtom(
+    () => {
+      const externalAtom = (
+        table.options.atoms as
+          | { data?: Atom<ReadonlyArray<unknown>> }
+          | undefined
+      )?.data
+      if (externalAtom) {
+        return externalAtom.get()
+      }
+      return table.options.data
+    },
+    { debugName: 'table/atoms/data' },
+  )
+
   table_syncExternalStateToBaseAtoms(table)
 
   table.store = atomToStore(

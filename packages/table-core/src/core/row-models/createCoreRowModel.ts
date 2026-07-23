@@ -19,12 +19,14 @@ export function createCoreRowModel<
   table: Table_Internal<TFeatures, TData>,
 ) => () => RowModel<TFeatures, TData> {
   return (table) => {
+    const getData = () =>
+      table.atoms.data!.get() as ReadonlyArray<TData>
     return tableMemo({
       feature: 'coreRowModelsFeature',
       table,
       fnName: 'table.getCoreRowModel',
-      memoDeps: () => [table.options.data],
-      fn: () => _createCoreRowModel(table, table.options.data),
+      memoDeps: () => [getData()],
+      fn: () => _createCoreRowModel(table, getData()),
       onAfterUpdate: () => table_autoResetPageIndex(table),
     })
   }
