@@ -20,13 +20,14 @@ export function createCoreRowModel<
 ) => () => RowModel<TFeatures, TData> {
   return (table) => {
     let previous: RowModel<TFeatures, TData> | undefined
+    const getData = () => table.atoms.data!.get() as ReadonlyArray<TData>
     return tableMemo({
       feature: 'coreRowModelsFeature',
       table,
       fnName: 'table.getCoreRowModel',
-      memoDeps: () => [table.options.data],
+      memoDeps: () => [getData()],
       fn: () => {
-        previous = _createCoreRowModel(table, table.options.data, previous)
+        previous = _createCoreRowModel(table, getData(), previous)
         return previous
       },
       onAfterUpdate: () => table_autoResetPageIndex(table),

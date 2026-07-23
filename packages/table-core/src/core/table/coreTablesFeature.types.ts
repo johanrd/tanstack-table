@@ -79,10 +79,26 @@ export type BaseAtoms_All = {
 }
 export type Atoms_All = {
   [K in keyof TableState_All]?: ReadonlyAtom<TableState_All[K]>
+} & {
+  /**
+   * Readonly atom resolving the table's data: the external `options.atoms.data`
+   * atom when provided, else `options.data`. Row models depend on this atom
+   * instead of raw options identity, so an external data atom with a custom
+   * `compare` can absorb content-identical array replacements.
+   */
+  data?: ReadonlyAtom<ReadonlyArray<unknown>>
 }
 export type ExternalAtoms_All = Partial<{
   [K in keyof TableState_All]: Atom<Exclude<TableState_All[K], undefined>>
-}>
+}> & {
+  /**
+   * Own the table's data identity in the reactivity layer. When provided,
+   * `options.data` is ignored and row models read data through this atom —
+   * give it a content-aware `compare` to skip row-model rebuilds for
+   * replacement arrays with identical contents.
+   */
+  data?: Atom<ReadonlyArray<unknown>>
+}
 
 export interface TableOptions_Table<
   in out TFeatures extends TableFeatures,
@@ -189,11 +205,13 @@ export interface Table_CoreProperties<
    */
   _rowPrototype?: object
   /**
-   * The readonly derived atoms for each `TableState` slice. Each derives from
-   * its corresponding `baseAtom` plus, optionally, a per-slice external atom or
-   * external state value (precedence: external atom > external state > base atom).
+   * The readonly derived atoms for each `TableState` slice, plus `data`. Each
+   * state atom derives from its corresponding `baseAtom` plus, optionally, a
+   * per-slice external atom or external state value (precedence: external atom
+   * > external state > base atom). The `data` atom resolves the external
+   * `options.atoms.data` atom when provided, else `options.data`.
    */
-  readonly atoms: Atoms<TFeatures>
+  readonly atoms: Atoms<TFeatures> & Pick<Atoms_All, 'data'>
   /**
    * The internal writable atoms for each `TableState` slice. This is the library's
    * single write surface — all state mutations from features land here.
