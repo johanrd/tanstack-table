@@ -22,12 +22,12 @@ describe('data atom', () => {
     })
     const model1 = table.getCoreRowModel()
 
-    // default behavior preserved: new array identity -> rebuilt model
+    // combined with row-instance reuse: identical contents -> model reused
     table.setOptions((prev) => ({ ...prev, data: [...data] }))
     const model2 = table.getCoreRowModel()
 
     expect(table.atoms.data!.get()).toBe(table.options.data)
-    expect(model2).not.toBe(model1)
+    expect(model2).toBe(model1)
   })
 
   it('skips the row-model rebuild when a compare-equipped data atom absorbs an identical-contents array', () => {
@@ -51,7 +51,7 @@ describe('data atom', () => {
     expect(model2.rows[0]).toBe(model1.rows[0])
   })
 
-  it('still rebuilds every row when the data genuinely changed', () => {
+  it('rebuilds only the changed row when the data genuinely changed', () => {
     const data = generateTestData(3)
     const dataAtom = createAtom<ReadonlyArray<unknown>>(data, {
       compare: shallow,
@@ -64,17 +64,17 @@ describe('data atom', () => {
     })
     const model1 = table.getCoreRowModel()
 
-    // one-record immutable replacement -> compare sees a difference; without
-    // per-row reuse the entire model, including unchanged rows, is rebuilt
+    // one-record immutable replacement -> compare sees a difference; the
+    // atom notifies, and row-instance reuse keeps the unchanged rows
     const changed: Person = { ...data[1]!, firstName: 'changed' }
     dataAtom.set(data.map((datum, i) => (i === 1 ? changed : datum)))
     const model2 = table.getCoreRowModel()
 
     expect(model2).not.toBe(model1)
     expect(model2.rows.length).toBe(3)
-    expect(model2.rows[0]).not.toBe(model1.rows[0])
+    expect(model2.rows[0]).toBe(model1.rows[0])
     expect(model2.rows[1]).not.toBe(model1.rows[1])
-    expect(model2.rows[2]).not.toBe(model1.rows[2])
+    expect(model2.rows[2]).toBe(model1.rows[2])
   })
 
   it('ignores options.data while an external data atom is present', () => {
