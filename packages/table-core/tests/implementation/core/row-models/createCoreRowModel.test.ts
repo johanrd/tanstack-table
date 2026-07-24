@@ -241,7 +241,7 @@ describe('memoization', () => {
     expect(table.getCoreRowModel().rows[0]).toBe(first.rows[0])
   })
 
-  it('should build a new model when the data array identity changes', () => {
+  it('should reuse the model when the data array identity changes but contents do not', () => {
     const data = generateTestData(3)
     const table = makeTable(data)
     const first = table.getCoreRowModel()
@@ -249,9 +249,27 @@ describe('memoization', () => {
     table.setOptions((old) => ({ ...old, data: [...data] }))
     const second = table.getCoreRowModel()
 
-    expect(second).not.toBe(first)
-    expect(second.rows[0]).not.toBe(first.rows[0])
+    expect(second).toBe(first)
+    expect(second.rows[0]).toBe(first.rows[0])
     expect(second.rows.length).toBe(first.rows.length)
+  })
+
+  it('should build a new model, reusing unchanged rows, when an element is replaced', () => {
+    const data = generateTestData(3)
+    const table = makeTable(data)
+    const first = table.getCoreRowModel()
+
+    const changed = { ...data[1]! }
+    table.setOptions((old) => ({
+      ...old,
+      data: data.map((datum, i) => (i === 1 ? changed : datum)),
+    }))
+    const second = table.getCoreRowModel()
+
+    expect(second).not.toBe(first)
+    expect(second.rows[0]).toBe(first.rows[0])
+    expect(second.rows[1]).not.toBe(first.rows[1])
+    expect(second.rows[2]).toBe(first.rows[2])
   })
 
   it('should preserve the cached model when setOptions keeps the same data reference', () => {
