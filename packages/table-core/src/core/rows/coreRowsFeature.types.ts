@@ -125,6 +125,19 @@ export interface TableOptions_Rows<
     originalRow: TData,
     index: number,
   ) => undefined | ReadonlyArray<TData>
+  /**
+   * When `true`, the core row model keeps a `Row` instance if its id, its original row
+   * object, its index and its parent are all unchanged. Only the rows that actually
+   * changed get a new instance.
+   *
+   * Off by default, which rebuilds every `Row` whenever the `data` array identity changes.
+   *
+   * Turn it on when `data` comes from a cache that returns a fresh array per update
+   * (Apollo, React Query, a socket feed). Row identity is what `React.memo`, Vue's
+   * `v-for` keys and Glimmer's `{{#each}}` compare, so reuse lets them skip unchanged rows.
+   * @example reuseRowInstances: true
+   */
+  reuseRowInstances?: boolean
 }
 
 export interface Table_Rows<
