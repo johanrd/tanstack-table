@@ -263,3 +263,72 @@ describe('memoization', () => {
     expect(table.getCoreRowModel()).toBe(first)
   })
 })
+
+describe('reuseRowInstances', () => {
+  it('should keep row instances whose original row object is unchanged', () => {
+    const data = generateTestData(3)
+    const table = makeTable(data, {
+      getRowId: (row) => row.id,
+      reuseRowInstances: true,
+    })
+    const first = table.getCoreRowModel()
+
+    table.setOptions((old) => ({ ...old, data: [...data] }))
+    const second = table.getCoreRowModel()
+
+    expect(second).not.toBe(first)
+    expect(second.rows[0]).toBe(first.rows[0])
+    expect(second.rows.map((row) => row.id)).toEqual(
+      first.rows.map((row) => row.id),
+    )
+  })
+
+  it('should replace only the rows whose original row object changed', () => {
+    const data = generateTestData(3)
+    const table = makeTable(data, {
+      getRowId: (row) => row.id,
+      reuseRowInstances: true,
+    })
+    const first = table.getCoreRowModel()
+
+    const next = [...data]
+    next[1] = { ...next[1]!, firstName: 'changed' }
+    table.setOptions((old) => ({ ...old, data: next }))
+    const second = table.getCoreRowModel()
+
+    expect(second.rows[0]).toBe(first.rows[0])
+    expect(second.rows[1]).not.toBe(first.rows[1])
+    expect(second.rows[1]!.original.firstName).toBe('changed')
+    expect(second.rows[2]).toBe(first.rows[2])
+  })
+
+  it('should replace a row that moved, so index and id stay correct', () => {
+    const data = generateTestData(3)
+    const table = makeTable(data, {
+      getRowId: (row) => row.id,
+      reuseRowInstances: true,
+    })
+    const first = table.getCoreRowModel()
+
+    table.setOptions((old) => ({
+      ...old,
+      data: [data[1]!, data[0]!, data[2]!],
+    }))
+    const second = table.getCoreRowModel()
+
+    expect(second.rows[0]!.id).toBe(first.rows[1]!.id)
+    expect(second.rows[0]!.index).toBe(0)
+    expect(second.rows[0]).not.toBe(first.rows[1])
+    expect(second.rows[2]).toBe(first.rows[2])
+  })
+
+  it('should rebuild every row when the option is off', () => {
+    const data = generateTestData(3)
+    const table = makeTable(data, { getRowId: (row) => row.id })
+    const first = table.getCoreRowModel()
+
+    table.setOptions((old) => ({ ...old, data: [...data] }))
+
+    expect(table.getCoreRowModel().rows[0]).not.toBe(first.rows[0])
+  })
+})

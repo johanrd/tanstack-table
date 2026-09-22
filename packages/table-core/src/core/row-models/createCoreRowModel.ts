@@ -22,12 +22,21 @@ export function createCoreRowModel<
   table: Table_Internal<TFeatures, TData>,
 ) => () => RowModel<TFeatures, TData> {
   return (table) => {
+    let previous: RowModel<TFeatures, TData> | undefined
     return tableMemo({
       feature: 'coreRowModelsFeature',
       table,
       fnName: 'table.getCoreRowModel',
       memoDeps: () => [table.options.data],
-      fn: () => _createCoreRowModel(table, table.options.data),
+      fn: () => {
+        const next = _createCoreRowModel(
+          table,
+          table.options.data,
+          table.options.reuseRowInstances ? previous : undefined,
+        )
+        previous = next
+        return next
+      },
       onAfterUpdate: skipFirstRun(() => {
         table_autoResetExpanded(table)
         table_autoResetPageIndex(table)
@@ -42,6 +51,7 @@ function accessRows<TFeatures extends TableFeatures, TData extends RowData>(
   table: Table_Internal<TFeatures, TData>,
   rowModel: RowModel<TFeatures, TData>,
   originalRows: ReadonlyArray<TData>,
+  previous: RowModel<TFeatures, TData> | undefined,
   depth = 0,
   parentRow?: Row<TFeatures, TData>,
 ): Array<Row<TFeatures, TData>> {
@@ -49,16 +59,26 @@ function accessRows<TFeatures extends TableFeatures, TData extends RowData>(
 
   for (let i = 0; i < originalRows.length; i++) {
     const originalRow = originalRows[i]!
-    // Make the row
-    const row = constructRow(
-      table,
-      table.getRowId(originalRow, i, parentRow),
-      originalRow,
-      i,
-      depth,
-      undefined,
-      parentRow?.id,
-    )
+    const id = table.getRowId(originalRow, i, parentRow)
+    const reusable = previous?.rowsById[id]
+    // Reuse only when nothing this row is built from has changed, so the instance
+    // is indistinguishable from a fresh one.
+    const row =
+      reusable !== undefined &&
+      reusable.original === originalRow &&
+      reusable.index === i &&
+      reusable.depth === depth &&
+      reusable.parentId === parentRow?.id
+        ? reusable
+        : constructRow(
+            table,
+            id,
+            originalRow,
+            i,
+            depth,
+            undefined,
+            parentRow?.id,
+          )
 
     // Keep track of every row in a flat array
     rowModel.flatRows.push(row)
@@ -77,6 +97,7 @@ function accessRows<TFeatures extends TableFeatures, TData extends RowData>(
           table,
           rowModel,
           row.originalSubRows,
+          previous,
           depth + 1,
           row,
         )
@@ -93,6 +114,7 @@ function _createCoreRowModel<
 >(
   table: Table_Internal<TFeatures, TData>,
   data: ReadonlyArray<TData>,
+  previous: RowModel<TFeatures, TData> | undefined,
 ): {
   rows: Array<Row<TFeatures, TData>>
   flatRows: Array<Row<TFeatures, TData>>
@@ -104,7 +126,7 @@ function _createCoreRowModel<
     rowsById: makeObjectMap(),
   }
 
-  rowModel.rows = accessRows(table, rowModel, data)
+  rowModel.rows = accessRows(table, rowModel, data, previous)
 
   return rowModel
 }
